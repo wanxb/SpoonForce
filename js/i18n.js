@@ -5,7 +5,7 @@ const I18n = (() => {
   const LANG = {
     zh: {
       appName: 'SpoonForce 勺子秤',
-      placeSpoon: '用手指或勺子按压此处',
+      placeSpoon: '请将勺子按压在此区域',
       tare: '去皮归零',
       unitSwitch: '切换单位',
       calibrate: '校准',
@@ -14,7 +14,7 @@ const I18n = (() => {
       tapToUnlock: '点击解锁',
       overloadWarning: '⚠ 超重预警！请减轻压力',
       sensorConnected: '传感器已连接',
-      sensorNoForce: '已触摸，但未检测到压力数据',
+      sensorNoForce: '已触摸，但未检测到真实压力数据',
       sensorDisconnected: '等待触摸…',
       gram: '克',
       gramShort: 'g',
@@ -36,6 +36,7 @@ const I18n = (() => {
       calibReset: '重置校准',
       calibCancel: '取消',
       calibNoForce: '未检测到压力，请先将勺子放在屏幕上',
+      calibInvalid: '校准数据无效，请使用差距更大的两个已知重量重新校准',
       // History
       histTitle: '称重历史',
       histEmpty: '暂无称重记录',
@@ -46,12 +47,12 @@ const I18n = (() => {
       compatTitle: '设备不兼容',
       compatMsg: '此应用需要支持 3D Touch 的 iPhone 才能准确测量重量。',
       compatDevices: '兼容设备：iPhone 6s / 6s Plus / 7 / 7 Plus / 8 / 8 Plus / X / Xs / Xs Max',
-      compatHapticWarn: '您的设备无 3D Touch，已启用触摸面积模拟模式，测量结果仅供参考',
+      compatHapticWarn: '未检测到 3D Touch，无法进行称重',
       compatDismiss: '我知道了，继续使用',
     },
     en: {
       appName: 'SpoonForce',
-      placeSpoon: 'Press here with\nfinger or spoon',
+      placeSpoon: 'Press here with spoon',
       tare: 'Tare',
       unitSwitch: 'Unit',
       calibrate: 'Calibrate',
@@ -60,7 +61,7 @@ const I18n = (() => {
       tapToUnlock: 'Tap to unlock',
       overloadWarning: '⚠ Overload! Reduce pressure',
       sensorConnected: 'Sensor connected',
-      sensorNoForce: 'Touch detected, but no force data',
+      sensorNoForce: 'Touch detected, but no real force data',
       sensorDisconnected: 'Waiting for touch…',
       gram: 'Gram',
       gramShort: 'g',
@@ -82,6 +83,7 @@ const I18n = (() => {
       calibReset: 'Reset Calibration',
       calibCancel: 'Cancel',
       calibNoForce: 'No pressure detected. Place the spoon on screen first.',
+      calibInvalid: 'Invalid calibration data. Use two known weights with a larger gap and retry.',
       // History
       histTitle: 'Weighing History',
       histEmpty: 'No records yet',
@@ -92,7 +94,7 @@ const I18n = (() => {
       compatTitle: 'Incompatible Device',
       compatMsg: 'This app requires an iPhone with 3D Touch for accurate weight measurement.',
       compatDevices: 'Compatible: iPhone 6s / 6s Plus / 7 / 7 Plus / 8 / 8 Plus / X / Xs / Xs Max',
-      compatHapticWarn: 'No 3D Touch detected. Using touch radius fallback — results are approximate.',
+      compatHapticWarn: 'No 3D Touch detected. Measurement is unavailable.',
       compatDismiss: 'I understand, continue',
     },
   };

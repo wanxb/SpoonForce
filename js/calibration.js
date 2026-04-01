@@ -56,7 +56,11 @@ const Calibration = (() => {
       if (currentForce < 0.01) {
         return { success: false, error: 'calibNoForce' };
       }
-      point1 = { force: currentForce - tareForce, weight };
+      const netForce = currentForce - tareForce;
+      if (netForce <= 0.005) {
+        return { success: false, error: 'calibNoForce' };
+      }
+      point1 = { force: netForce, weight };
       step = 3;
       if (_onStepChange) _onStepChange(step);
       return { success: true };
@@ -71,7 +75,11 @@ const Calibration = (() => {
       if (currentForce < 0.01) {
         return { success: false, error: 'calibNoForce' };
       }
-      point2 = { force: currentForce - tareForce, weight };
+      const netForce = currentForce - tareForce;
+      if (netForce <= 0.005) {
+        return { success: false, error: 'calibNoForce' };
+      }
+      point2 = { force: netForce, weight };
 
       // Calculate linear fit: weight = k * netForce + b
       const df = point2.force - point1.force;
@@ -80,6 +88,9 @@ const Calibration = (() => {
       }
       const k = (point2.weight - point1.weight) / df;
       const b = point1.weight - k * point1.force;
+      if (!Number.isFinite(k) || !Number.isFinite(b) || k <= 0) {
+        return { success: false, error: 'invalidCalibration' };
+      }
 
       const calibData = {
         k,

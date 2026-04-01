@@ -3,10 +3,13 @@
  */
 const ForceSensor = (() => {
   const BUFFER_SIZE = 10;
+  const CIRCLE_HIT_PADDING_PX = 28;
   let forceBuffer = [];
   let currentRawForce = 0;
   let smoothedForce = 0;
   let isActive = false;
+  let lastForceTime = 0;
+  const NO_FORCE_GRACE_MS = 220;
   let _onForceChange = null;
   let _onForceEnd = null;
   let _onConnectionChange = null;
@@ -22,33 +25,60 @@ const ForceSensor = (() => {
 
   let _scaleCircle = null;
 
-  function _isTouchInCircle(touch) {
+  function _isTouchInCircle(touch, padding = 0) {
     if (!_scaleCircle) return false;
     const rect = _scaleCircle.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
-    const r = rect.width / 2;
+    const r = rect.width / 2 + padding;
     const dx = touch.clientX - cx;
     const dy = touch.clientY - cy;
     return (dx * dx + dy * dy) <= (r * r);
   }
 
+  function _getTouchList(e) {
+    const map = new Map();
+    const touches = e.touches && e.touches.length ? Array.from(e.touches) : [];
+    const changed = e.changedTouches && e.changedTouches.length ? Array.from(e.changedTouches) : [];
+    touches.concat(changed).forEach((t, idx) => {
+      const key = typeof t.identifier === 'number' ? t.identifier : `idx-${idx}`;
+      map.set(key, t);
+    });
+    return Array.from(map.values());
+  }
+
+  function _pickTouchInCircle(e) {
+    const list = _getTouchList(e);
+    const inCircle = list.filter((t) => _isTouchInCircle(t, CIRCLE_HIT_PADDING_PX));
+    if (inCircle.length === 0) return null;
+    // Prefer the touch with strongest force when multiple touches exist.
+    return inCircle.reduce((best, t) => ((t.force || 0) > (best.force || 0) ? t : best), inCircle[0]);
+  }
+
+  function _readTouchForce(touch) {
+    const force = typeof touch.force === 'number' ? touch.force : 0;
+    const webkitForce = typeof touch.webkitForce === 'number' ? touch.webkitForce : 0;
+    // Some iOS Safari builds expose webkitForce instead of force, often in 0..3 range.
+    const normalizedWebkit = webkitForce > 1 ? webkitForce / 3 : webkitForce;
+    return Math.max(force, normalizedWebkit, 0);
+  }
+
   function _handleTouch(e) {
-    // Don't prevent default on interactive elements (buttons, inputs, etc.)
-    const tag = e.target.tagName;
-    const isInteractive = tag === 'BUTTON' || tag === 'INPUT' || tag === 'LABEL' || tag === 'A'
-      || e.target.closest('button') || e.target.closest('input') || e.target.closest('.panel');
-    if (!isInteractive) {
-      e.preventDefault();
+    const touch = _pickTouchInCircle(e);
+    if (!touch) {
+      // If active touch moved out of target area, treat as touch end for measuring.
+      if (isActive && _onForceEnd) {
+        isActive = false;
+        _onForceEnd({ lastSmoothed: smoothedForce });
+      }
+      return;
     }
 
-    const touch = e.touches[0];
-    if (!touch) return;
+    // Only suppress default behavior when we are actively reading a touch in the scale area.
+    e.preventDefault();
 
-    // Only respond to touches inside the scale circle
-    if (!_isTouchInCircle(touch)) return;
-
-    const hasForce = 'force' in touch && touch.force > 0;
+    const forceValue = _readTouchForce(touch);
+    const hasForce = forceValue > 0;
 
     if (hasForce) {
       if (forceSupported === null || forceSupported === false) {
@@ -56,9 +86,10 @@ const ForceSensor = (() => {
         if (_onConnectionChange) _onConnectionChange(true);
       }
 
-      currentRawForce = touch.force;
+      currentRawForce = forceValue;
       smoothedForce = _addToBuffer(currentRawForce);
       isActive = true;
+      lastForceTime = Date.now();
 
       if (_onForceChange) {
         _onForceChange({
@@ -68,48 +99,28 @@ const ForceSensor = (() => {
         });
       }
     } else {
-      // Fallback: use touch radius as pressure proxy
-      // Finger contact area grows when pressing harder (~20-80 radius range)
-      const rx = touch.radiusX || 0;
-      const ry = touch.radiusY || 0;
-      const radius = Math.max(rx, ry);
-
-      if (radius > 0) {
-        // Map radius to a pseudo-force (0.0 ~ 1.0)
-        // Light tap ~20-30, hard press ~60-90
-        const minR = 20;
-        const maxR = 80;
-        const pseudoForce = Math.min(1, Math.max(0, (radius - minR) / (maxR - minR)));
-
-        if (forceSupported === null || forceSupported === false) {
-          forceSupported = 'radius'; // special flag for radius-based mode
-          if (_onConnectionChange) _onConnectionChange('radius');
-        }
-
-        currentRawForce = pseudoForce;
-        smoothedForce = _addToBuffer(pseudoForce);
-        isActive = true;
-
-        if (_onForceChange) {
-          _onForceChange({
-            raw: pseudoForce,
-            smoothed: smoothedForce,
-            hasForce: true,
-            radiusMode: true,
-          });
-        }
-      } else {
-        // No force AND no radius data
-        isActive = true;
-        if (_onForceChange) {
-          _onForceChange({ raw: 0, smoothed: 0, hasForce: false });
-        }
+      // Touch exists but no real force data on this sample.
+      // Keep short grace window to tolerate Safari force sampling dropouts.
+      const inGrace = Date.now() - lastForceTime <= NO_FORCE_GRACE_MS;
+      isActive = true;
+      if (_onForceChange) {
+        _onForceChange({
+          raw: inGrace ? currentRawForce : 0,
+          smoothed: inGrace ? smoothedForce : 0,
+          hasForce: inGrace,
+        });
       }
     }
   }
 
   function _handleTouchEnd(e) {
-    // Don't reset force immediately — keep last reading for lock feature
+    // A touch ended somewhere on the page; only end measurement when scale-area touch is gone.
+    const touch = _pickTouchInCircle(e);
+    if (touch) {
+      _handleTouch(e);
+      return;
+    }
+
     isActive = false;
     if (_onForceEnd) {
       _onForceEnd({ lastSmoothed: smoothedForce });
@@ -130,20 +141,7 @@ const ForceSensor = (() => {
     // WebKit-specific event for force changes without finger movement
     window.addEventListener('touchforcechange', _handleForceChange, opts);
 
-    // Detection: after first touch, wait 2s to see if force data arrives
-    let detected = false;
-    const onFirstTouch = () => {
-      if (detected) return;
-      detected = true;
-      setTimeout(() => {
-        if (forceSupported === null) {
-          forceSupported = false;
-          if (_onConnectionChange) _onConnectionChange(false);
-        }
-      }, 2000);
-      window.removeEventListener('touchstart', onFirstTouch);
-    };
-    window.addEventListener('touchstart', onFirstTouch);
+    // Do not hard-fail force support by timeout; some devices only report force after deeper press.
   }
 
   function onForceChange(cb) { _onForceChange = cb; }

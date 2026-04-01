@@ -65,43 +65,47 @@ const App = (() => {
     currentUnit = prefs.unit || 'g';
   }
 
+  function _bindTap(el, handler) {
+    if (!el) return;
+    el.addEventListener('click', handler);
+    el.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      handler(e);
+    }, { passive: false });
+  }
+
   function _bindEvents() {
     // Tare
-    document.getElementById('btn-tare').addEventListener('click', _tare);
+    _bindTap(document.getElementById('btn-tare'), _tare);
     // Unit switch
-    document.getElementById('btn-unit').addEventListener('click', _toggleUnit);
+    _bindTap(document.getElementById('btn-unit'), _toggleUnit);
     // Calibrate
-    document.getElementById('btn-calibrate').addEventListener('click', _openCalibration);
+    _bindTap(document.getElementById('btn-calibrate'), _openCalibration);
     // History
-    document.getElementById('btn-history').addEventListener('click', _openHistory);
+    _bindTap(document.getElementById('btn-history'), _openHistory);
     // Language
-    document.getElementById('btn-lang').addEventListener('click', _toggleLang);
+    _bindTap(document.getElementById('btn-lang'), _toggleLang);
     // Lock icon tap to unlock
-    $lockIcon.addEventListener('click', _unlock);
+    _bindTap($lockIcon, _unlock);
 
     // Calibration panel
-    $calibNextBtn.addEventListener('click', _calibNext);
-    document.getElementById('calib-cancel-btn').addEventListener('click', _cancelCalibration);
+    _bindTap($calibNextBtn, _calibNext);
+    _bindTap(document.getElementById('calib-cancel-btn'), _cancelCalibration);
 
     // History panel
-    document.getElementById('hist-close-btn').addEventListener('click', _closeHistory);
-    document.getElementById('hist-clear-btn').addEventListener('click', _clearHistory);
+    _bindTap(document.getElementById('hist-close-btn'), _closeHistory);
+    _bindTap(document.getElementById('hist-clear-btn'), _clearHistory);
 
     // Compat
     const dismissBtn = document.getElementById('compat-dismiss-btn');
     if (dismissBtn) {
-      dismissBtn.addEventListener('click', () => {
+      _bindTap(dismissBtn, () => {
         $compatOverlay.classList.add('hidden');
       });
     }
     const hapticDismiss = document.getElementById('haptic-dismiss-btn');
     if (hapticDismiss) {
-      hapticDismiss.addEventListener('click', () => {
-        $hapticBanner.classList.add('hidden');
-      });
-      // Also handle touch directly for iOS reliability
-      hapticDismiss.addEventListener('touchend', (e) => {
-        e.preventDefault();
+      _bindTap(hapticDismiss, () => {
         $hapticBanner.classList.add('hidden');
       });
     }
@@ -110,11 +114,6 @@ const App = (() => {
   // --- Force handling ---
   function _onForceUpdate(data) {
     if (Calibration.isActive()) return;
-
-    // Auto-unlock on new touch
-    if (isLocked && data.hasForce) {
-      _unlock();
-    }
     if (isLocked) return;
 
     $placeholderText.classList.add('hidden');
@@ -133,12 +132,12 @@ const App = (() => {
       _checkOverload(data.smoothed);
       _checkAutoLock(weightG);
     } else {
-      // Touch detected but no force — show touch indicator
-      $statusDot.classList.add('connected');
+      // Ignore plain touches without real force data.
+      $statusDot.classList.remove('connected');
       $statusText.setAttribute('data-i18n', 'sensorNoForce');
       $statusText.textContent = I18n.t('sensorNoForce');
-      $scaleCircle.style.borderColor = '#ffcc00';
-      $scaleCircle.style.boxShadow = '0 0 30px rgba(255, 204, 0, 0.3)';
+      $scaleCircle.style.borderColor = '';
+      $scaleCircle.style.boxShadow = '';
     }
   }
 
@@ -149,6 +148,7 @@ const App = (() => {
       $statusDot.classList.remove('connected');
       $statusText.setAttribute('data-i18n', 'sensorDisconnected');
       $statusText.textContent = I18n.t('sensorDisconnected');
+      $weightVal.textContent = '0.0';
       // Reset circle to gray (idle)
       $scaleCircle.style.borderColor = '';
       $scaleCircle.style.boxShadow = '';
@@ -160,12 +160,9 @@ const App = (() => {
       // Real force detected
       $compatOverlay.classList.add('hidden');
       $hapticBanner.classList.add('hidden');
-    } else if (supported === 'radius') {
-      // Radius-based fallback mode
-      $compatOverlay.classList.add('hidden');
-      $hapticBanner.classList.remove('hidden');
     } else {
-      // Nothing works
+      // Keep UI usable; show non-blocking hint instead of blocking overlay.
+      $compatOverlay.classList.add('hidden');
       $hapticBanner.classList.remove('hidden');
     }
   }
@@ -179,10 +176,9 @@ const App = (() => {
   }
 
   function _tare() {
-    tareForce = ForceSensor.getSmoothedForce();
+    tareForce = ForceSensor.getIsActive() ? ForceSensor.getSmoothedForce() : 0;
     $weightVal.textContent = '0.0';
     _unlock();
-    ForceSensor.resetBuffer();
   }
 
   function _toggleUnit() {
@@ -320,7 +316,9 @@ const App = (() => {
       const msg = result.error === 'calibNoForce'
         ? I18n.t('calibNoForce')
         : result.error === 'pointsTooClose'
-          ? 'Two calibration points are too close. Use different weights.'
+          ? I18n.t('calibInvalid')
+          : result.error === 'invalidCalibration'
+            ? I18n.t('calibInvalid')
           : 'Please enter a valid weight.';
       alert(msg);
     }
