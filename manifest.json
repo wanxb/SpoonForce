@@ -1,0 +1,18 @@
+{
+  "name": "SpoonForce 勺子秤",
+  "short_name": "SpoonForce",
+  "description": "用金属勺子和 iPhone 3D Touch 测量重量的厨房秤",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#007aff",
+  "background_color": "#f8f8fa",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

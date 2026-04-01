@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-touch-fullscreen" content="yes">
+  <meta name="theme-color" content="#f8f8fa" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1c1c1e" media="(prefers-color-scheme: dark)">
+  <meta name="description" content="SpoonForce - 用金属勺子和 iPhone 3D Touch 测量重量的厨房秤 Web 应用">
+  <meta property="og:title" content="SpoonForce 勺子秤">
+  <meta property="og:description" content="用金属勺子和 iPhone 测量重量">
+  <meta property="og:type" content="website">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="stylesheet" href="css/style.css">
+  <title>SpoonForce 勺子秤</title>
+</head>
+<body>
+
+  <!-- Haptic Touch warning banner -->
+  <div id="haptic-banner" class="haptic-banner hidden">
+    <p data-i18n="compatHapticWarn"></p>
+    <button id="haptic-dismiss-btn" data-i18n="compatDismiss"></button>
+  </div>
+
+  <!-- Incompatible device overlay -->
+  <div id="compat-overlay" class="compat-overlay hidden">
+    <div class="compat-card">
+      <div class="compat-icon">🥄</div>
+      <h2 data-i18n="compatTitle"></h2>
+      <p data-i18n="compatMsg"></p>
+      <p class="compat-devices" data-i18n="compatDevices"></p>
+      <button id="compat-dismiss-btn" data-i18n="compatDismiss"></button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="status">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text" class="status-text" data-i18n="sensorDisconnected"></span>
+    </div>
+    <button id="btn-lang" class="btn-lang">EN</button>
+  </header>
+
+  <!-- Main scale area -->
+  <main class="main">
+    <div id="scale-circle" class="scale-circle">
+      <p id="placeholder-text" class="placeholder-text" data-i18n="placeSpoon"></p>
+    </div>
+    <div class="weight-display">
+      <span id="lock-icon" class="lock-icon">🔒</span>
+      <h1 id="weight-val" class="weight-val">0.0</h1>
+      <span id="unit-label" class="unit-label">g</span>
+    </div>
+    <p id="warning" class="warning"></p>
+  </main>
+
+  <!-- Bottom controls -->
+  <footer class="controls">
+    <div class="controls-primary">
+      <button id="btn-unit" class="btn btn-primary" data-i18n="unitSwitch"></button>
+      <button id="btn-tare" class="btn btn-primary" data-i18n="tare"></button>
+    </div>
+    <div class="controls-secondary">
+      <button id="btn-calibrate" class="btn btn-secondary" data-i18n="calibrate"></button>
+      <button id="btn-history" class="btn btn-secondary" data-i18n="history"></button>
+    </div>
+  </footer>
+
+  <!-- Calibration panel -->
+  <div id="calib-panel" class="panel hidden">
+    <div class="panel-content">
+      <div class="panel-header">
+        <h2 data-i18n="calibTitle"></h2>
+        <span id="calib-progress" class="calib-progress">1 / 3</span>
+      </div>
+      <h3 id="calib-step-title" class="calib-step-title"></h3>
+      <p id="calib-step-desc" class="calib-step-desc"></p>
+      <div id="calib-input-group" class="calib-input-group hidden">
+        <label data-i18n="calibInputLabel"></label>
+        <input id="calib-input" type="number" inputmode="decimal" min="0" step="0.1" data-i18n="calibInputPlaceholder">
+      </div>
+      <div class="panel-actions">
+        <button id="calib-cancel-btn" class="btn btn-ghost" data-i18n="calibCancel"></button>
+        <button id="calib-next-btn" class="btn btn-primary" data-i18n="calibNext"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History panel -->
+  <div id="hist-panel" class="panel hidden">
+    <div class="panel-content">
+      <div class="panel-header">
+        <h2 data-i18n="histTitle"></h2>
+        <button id="hist-close-btn" class="btn-close">✕</button>
+      </div>
+      <div id="hist-list" class="hist-list"></div>
+      <div class="panel-actions">
+        <button id="hist-clear-btn" class="btn btn-ghost" data-i18n="histClearAll"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts (order matters: dependencies first) -->
+  <script src="js/storage.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/force-sensor.js"></script>
+  <script src="js/calibration.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
